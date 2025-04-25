@@ -45,9 +45,10 @@ class QuadcopterController:
         # 位置控制参数
         self.pos_p_gains = torch.ones((num_envs, 3), device=device) * torch.tensor([1.0, 1.0, 1.0], device=device)  # XYZ方向P增益
 
-        # 数值稳定性参数
+        # limitation
         self.eps = torch.finfo(torch.float32).eps
-        self.max_attitude = 0.3
+        self.max_attitude = 0.5236  # 30度对应的弧度值
+        self.max_acceleration = 5.0  # 最大加速度限制
 
     def reset_controller(self):
         self.vel_integral = torch.zeros_like(self.vel_integral)
@@ -129,6 +130,10 @@ class QuadcopterController:
     def attitude_controller(self, sensor_data, desired_attitude=None):
         if desired_attitude is None:
             desired_attitude = torch.zeros(sensor_data['base_ang_vel'].shape[0], 3, device=self.device)
+        
+        # # 添加姿态限制
+        # desired_attitude[:, :2] = torch.clamp(desired_attitude[:, :2], -self.max_attitude, self.max_attitude)
+        
         # 输入数据（仅需要角速度和重力投影）
         ang_vel = sensor_data['base_ang_vel'].to(self.device)
         projected_gravity = sensor_data['projected_gravity_b'].to(self.device)
@@ -170,6 +175,9 @@ class QuadcopterController:
         if desired_yaw is None:
             desired_yaw = torch.zeros(sensor_data['root_lin_vel_b'].shape[0], 1, device=self.device)
         
+        # 限制加速度
+        desired_acc = torch.clamp(desired_acc, -self.max_acceleration, self.max_acceleration)
+
         # 获取当前姿态的旋转矩阵（机体系→世界系）
         root_quat_w = sensor_data['root_quat_w']
         rotation_matrix = self.euler_to_rotation_matrix(self.quat_to_euler(root_quat_w))

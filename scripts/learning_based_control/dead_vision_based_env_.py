@@ -6,6 +6,7 @@ details:
 # 2. Create a sparse obstacle env.
 3. receive the camera image and depth data.
 
+4.24 It is dead
 """
 
 """Launch Isaac Sim Simulator first."""
