@@ -11,7 +11,7 @@ It contains
 """
 
 import torch
-
+import cv2
 
 class QuadcopterController:
     def __init__(self, num_envs, mass, gravity=9.81, dt=0.005, device="cuda"):
@@ -48,7 +48,7 @@ class QuadcopterController:
         # limitation
         self.eps = torch.finfo(torch.float32).eps
         self.max_attitude = 0.5236  # 30度对应的弧度值
-        self.max_acceleration = 5.0  # 最大加速度限制
+        self.max_acceleration = 4.0  # 最大加速度限制
 
     def reset_controller(self):
         self.vel_integral = torch.zeros_like(self.vel_integral)
@@ -89,6 +89,11 @@ class QuadcopterController:
         返回：
             rotation_matrix : [num_envs, 3, 3] 旋转矩阵（机体系→惯性系）
         """
+        
+        if torch.any(torch.isnan(rpy)) or torch.any(torch.isinf(rpy)):
+        # 重置为安全姿态角 (水平悬停姿态)
+            rpy = torch.zeros_like(rpy)
+
         roll, pitch, yaw = rpy.unbind(dim=1)
         
         # 预计算三角函数值（批量处理）
@@ -125,6 +130,10 @@ class QuadcopterController:
         
         # 组合旋转矩阵（Z-Y-X顺序）[7](@ref)
         rotation_matrix = torch.bmm(Rz, torch.bmm(Ry, Rx))
+        for i in range(rotation_matrix.shape[0]):
+        # 对每个环境的旋转矩阵进行QR分解再正交化
+            Q, R = torch.linalg.qr(rotation_matrix[i])
+            rotation_matrix[i] = Q
         return rotation_matrix
 
     def attitude_controller(self, sensor_data, desired_attitude=None):
@@ -300,3 +309,56 @@ class QuadcopterController:
         print('-'*20)
         
         return thrust, torque, desired_attitude, desired_acc
+    
+    def get_velocity_from_depth_gradient(self, sensor_data, desired_x_vel, desired_yaw):
+        
+        depth_image = sensor_data['camera_depth']
+        if depth_image is None:
+            depth_image = torch.zeros(sensor_data['root_pos_w'].shape[0], 100, 100, 1, device=self.device)
+        if desired_x_vel is None:
+            desired_x_vel = torch.zeros(sensor_data['root_pos_w'].shape[0], device=self.device)
+        else:
+            desired_x_vel = torch.ones(sensor_data['root_pos_w'].shape[0], device=self.device) * desired_x_vel
+        if desired_yaw is None:
+            desired_yaw = torch.zeros(sensor_data['root_pos_w'].shape[0], 1, device=self.device)
+
+        root_quat_w = sensor_data['root_quat_w']
+
+        # 获取图像中心区域
+        h, w = depth_image.shape[1:3]
+        center_h, center_w = h // 2, w // 2
+        
+        # 使用torch计算x和y方向的梯度
+        grad_y = torch.zeros_like(depth_image[:, 0, 0, 0])
+        grad_z = torch.zeros_like(depth_image[:, 0, 0, 0])
+        
+        for env_idx in range(depth_image.shape[0]):
+            # 计算单个环境的梯度
+            env_depth = depth_image[env_idx, :, :, 0]  # 提取单通道深度图
+            grad_y_env = torch.gradient(env_depth, dim=1)[0][center_h, center_w]
+            grad_z_env = torch.gradient(env_depth, dim=0)[0][center_h, center_w]
+            grad_y[env_idx] = grad_y_env
+            grad_z[env_idx] = grad_z_env
+        
+        # 将梯度转换为速度指令（相机坐标系）
+        vy_cam = -grad_y * 200
+        vz_cam = -grad_z * 200
+        vx_cam = torch.zeros_like(vy_cam)
+        velocity_cam = torch.stack([vx_cam, vy_cam, vz_cam], dim=1).to(self.device)
+        
+        # 将速度从相机坐标系转换到世界坐标系（批量处理）
+        rotation_matrix = self.euler_to_rotation_matrix(self.quat_to_euler(root_quat_w))
+        velocity_world = torch.bmm(rotation_matrix, velocity_cam.unsqueeze(-1)).squeeze(-1)
+        velocity_world[:,0]+=desired_x_vel
+        velocity_world = torch.clamp(velocity_world, min=-10.0, max=10.0)
+
+        print('velocity_cam:',velocity_cam)
+        print('desired_vel:',velocity_world)
+
+        thrust, torque, desired_attitude, desired_acc = self.velocity_controller(
+            sensor_data,
+            desired_vel=velocity_world,
+            desired_yaw=desired_yaw
+        )
+        
+        return thrust, torque, desired_attitude, desired_acc, velocity_cam, velocity_world

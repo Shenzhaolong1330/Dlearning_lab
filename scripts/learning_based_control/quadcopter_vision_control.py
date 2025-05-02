@@ -34,13 +34,12 @@ vision control:
 """Launch Isaac Sim Simulator first."""
 
 import argparse
-
 from isaaclab.app import AppLauncher
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Tutorial on creating a quadcopter stabilization environment.")
 parser.add_argument("--num_envs", type=int, default = 2, help="Number of environments to spawn.")
-parser.add_argument("--env_spacing", type=float, default = 10.0, help="Space between each environment.")
+parser.add_argument("--env_spacing", type=float, default = 20.0, help="Space between each environment.")
 parser.add_argument("--num_obstacles", type=int, default = 32, help="Number of obstacles to spawn.")
 
 # append AppLauncher cli args
@@ -146,7 +145,7 @@ class QuadcopterActionTermCfg(ActionTermCfg):
     moment_scale: float = 0.01
 
 
-def generate_random_position(index: int, region: dict = {'x':10.0, 'y':10.0, 'z':0.0}, min_spacing=1.0):
+def generate_random_position(index: int, region: dict = {'x':6.0, 'y':6.0, 'z':0.0}, min_spacing=1.0):
     positions = []
     while len(positions) <= index:
         x = random.uniform(-region['x'], region['x'])
@@ -330,64 +329,75 @@ class QuadcopterEnv(ManagerBasedEnv):
 def plot(data_log, plot_type='thrust'):
     plt.figure(figsize=(10, 6))
     
+    # 定义统一的颜色方案
+    colors = {
+        'x': '#1f77b4',  # 蓝色
+        'y': '#ff7f0e',  # 橙色
+        'z': '#2ca02c',  # 绿色
+        'thrust': '#d62728',  # 红色
+        'torque_x': '#9467bd',  # 紫色
+        'torque_y': '#8c564b',  # 棕色
+        'torque_z': '#e377c2',  # 粉色
+    }
+    
     if plot_type == 'thrust':
-        plt.plot(data_log['time'], data_log['thrust'], label='Thrust')
+        plt.plot(data_log['time'], data_log['thrust'], label='Thrust', color=colors['thrust'])
         plt.title('Thrust Output')
         plt.ylabel('Thrust (N)')
         
     elif plot_type == 'torque':
         torque = np.array(data_log['torque'])
-        plt.plot(data_log['time'], torque[:, 0], label='X Torque')
-        plt.plot(data_log['time'], torque[:, 1], label='Y Torque') 
-        plt.plot(data_log['time'], torque[:, 2], label='Z Torque')
+        plt.plot(data_log['time'], torque[:, 0], label='X Torque', color=colors['torque_x'])
+        plt.plot(data_log['time'], torque[:, 1], label='Y Torque', color=colors['torque_y']) 
+        plt.plot(data_log['time'], torque[:, 2], label='Z Torque', color=colors['torque_z'])
         plt.title('Torque Output')
         plt.ylabel('Torque (Nm)')
         
     elif plot_type == 'attitude':
         rpy = np.array(data_log['attitude'])
         desired_att = np.array(data_log['desired_att'])
-        plt.plot(data_log['time'], rpy[:, 0], label='Roll')
-        plt.plot(data_log['time'], desired_att[:, 0], '--', label='Desired Roll')
-        plt.plot(data_log['time'], rpy[:, 1], label='Pitch')
-        plt.plot(data_log['time'], desired_att[:, 1], '--', label='Desired Pitch')
-        plt.plot(data_log['time'], rpy[:, 2], label='Yaw')
-        plt.plot(data_log['time'], desired_att[:, 2], '--', label='Desired Yaw')
+        plt.plot(data_log['time'], rpy[:, 0], label='Roll', color=colors['x'])
+        plt.plot(data_log['time'], desired_att[:, 0], '--', label='Desired Roll', color=colors['x'])
+        plt.plot(data_log['time'], rpy[:, 1], label='Pitch', color=colors['y'])
+        plt.plot(data_log['time'], desired_att[:, 1], '--', label='Desired Pitch', color=colors['y'])
+        plt.plot(data_log['time'], rpy[:, 2], label='Yaw', color=colors['z'])
+        plt.plot(data_log['time'], desired_att[:, 2], '--', label='Desired Yaw', color=colors['z'])
         plt.title('Attitude Tracking')
         plt.ylabel('Attitude (rad)')
         
     elif plot_type == 'position':
         pos = np.array(data_log['position'])
         desired_pos = np.array(data_log['desired_pos'])
-        plt.plot(data_log['time'], pos[:, 0], label='X Position')
-        plt.plot(data_log['time'], desired_pos[:, 0], '--', label='Desired X')
-        plt.plot(data_log['time'], pos[:, 1], label='Y Position')
-        plt.plot(data_log['time'], desired_pos[:, 1], '--', label='Desired Y')
-        plt.plot(data_log['time'], pos[:, 2], label='Z Position')
-        plt.plot(data_log['time'], desired_pos[:, 2], '--', label='Desired Z')
+        plt.plot(data_log['time'], pos[:, 0], label='X Position', color=colors['x'])
+        plt.plot(data_log['time'], desired_pos[:, 0], '--', label='Desired X', color=colors['x'])
+        plt.plot(data_log['time'], pos[:, 1], label='Y Position', color=colors['y'])
+        plt.plot(data_log['time'], desired_pos[:, 1], '--', label='Desired Y', color=colors['y'])
+        plt.plot(data_log['time'], pos[:, 2], label='Z Position', color=colors['z'])
+        plt.plot(data_log['time'], desired_pos[:, 2], '--', label='Desired Z', color=colors['z'])
         plt.title('Position Tracking')
         plt.ylabel('Position (m)')
         
     elif plot_type == 'velocity':
         vel = np.array(data_log['velocity'])
         desired_vel = np.array(data_log['desired_vel'])
-        plt.plot(data_log['time'], vel[:, 0], label='Actual X')
-        plt.plot(data_log['time'], desired_vel[:, 0], '--', label='Desired X')
-        plt.plot(data_log['time'], vel[:, 1], label='Actual Y')
-        plt.plot(data_log['time'], desired_vel[:, 1], '--', label='Desired Y')
-        plt.plot(data_log['time'], vel[:, 2], label='Actual Z') 
-        plt.plot(data_log['time'], desired_vel[:, 2], '--', label='Desired Z')
+        plt.plot(data_log['time'], vel[:, 0], label='Actual X', color=colors['x'])
+        plt.plot(data_log['time'], desired_vel[:, 0], '--', label='Desired X', color=colors['x'])
+        plt.plot(data_log['time'], vel[:, 1], label='Actual Y', color=colors['y'])
+        plt.plot(data_log['time'], desired_vel[:, 1], '--', label='Desired Y', color=colors['y'])
+        plt.plot(data_log['time'], vel[:, 2], label='Actual Z', color=colors['z']) 
+        plt.plot(data_log['time'], desired_vel[:, 2], '--', label='Desired Z', color=colors['z'])
         plt.title('Velocity Tracking')
         plt.ylabel('Velocity (m/s)')
         
     elif plot_type == 'acceleration':
         acc = np.array(data_log['acceleration'])
         desired_acc = np.array(data_log['desired_acc'])
-        plt.plot(data_log['time'], acc[:, 0], label='Actual X')
-        plt.plot(data_log['time'], desired_acc[:, 0], '--', label='Desired X')
-        plt.plot(data_log['time'], acc[:, 1], label='Actual Y')
-        plt.plot(data_log['time'], desired_acc[:, 1], '--', label='Desired Y')
-        plt.plot(data_log['time'], acc[:, 2], label='Actual Z')
-        plt.plot(data_log['time'], desired_acc[:, 2], '--', label='Desired Z')
+        plt.plot(data_log['time'], acc[:, 0], label='Actual X', color=colors['x'])
+        plt.plot(data_log['time'], desired_acc[:, 0], '--', label='Desired X', color=colors['x'])
+        plt.plot(data_log['time'], acc[:, 1], label='Actual Y', color=colors['y'])
+        plt.plot(data_log['time'], desired_acc[:, 1], '--', label='Desired Y', color=colors['y'])
+        plt.plot(data_log['time'], acc[:, 2], label='Actual Z', color=colors['z'])
+        plt.plot(data_log['time'], desired_acc[:, 2], '--', label='Desired Z', color=colors['z'])
         plt.title('Acceleration Tracking')
         plt.ylabel('Acceleration (m/s²)')
         
@@ -399,6 +409,74 @@ def plot(data_log, plot_type='thrust'):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     plt.show()
+
+
+
+def gaussia_depth_image(depth_image, kernel_size=[51, 51], sigma=[1000.0, 1000.0], max_distance=5.0):
+    # preprocess depth image
+    for env_idx in range(depth_image.shape[0]):
+        env_depth = depth_image[env_idx]
+        # 将超过最大距离的深度值设置为最大值
+        env_depth[env_depth > max_distance] = max_distance
+        if torch.any(~torch.isinf(env_depth)):
+            max_valid_depth = torch.max(env_depth[~torch.isinf(env_depth)])
+        else:
+            max_valid_depth = torch.tensor(1.0, device=env_depth.device)
+        env_depth[torch.isinf(env_depth)] = max_valid_depth
+        env_depth_normalized = (env_depth - env_depth.min()) / (env_depth.max() - env_depth.min())
+        depth_image[env_idx] = env_depth_normalized
+        
+    # gaussian blur depth image
+    for env_idx in range(depth_image.shape[0]):
+        env_depth = depth_image[env_idx]
+        env_depth = env_depth.permute(2, 0, 1)
+        env_depth_smoothed = gaussian_blur(env_depth, kernel_size=kernel_size, sigma=sigma)
+        env_depth_smoothed = env_depth_smoothed.permute(1, 2, 0)
+        depth_image[env_idx] = env_depth_smoothed
+
+    return depth_image
+
+
+
+def save_depth_images(depth_image, depth_image_dir, count):
+    # create a folder to save images
+    os.makedirs(depth_image_dir, exist_ok=True)
+    depth_image_path = os.path.join(depth_image_dir, f"depth_{count:04d}.png")
+    test_depth_image = np.squeeze(depth_image[0].cpu().numpy())
+    plt.imsave(depth_image_path, test_depth_image, cmap="viridis")
+    print(f"Saved depth image to {depth_image_path}")
+
+
+
+def save_depth_with_velocity(depth_image, depth_image_dir, velocity_cam, count):
+    """将相机坐标系中心点的二维速度绘制在深度图上并保存"""
+    
+    os.makedirs(depth_image_dir, exist_ok=True)
+    depth_image_path = os.path.join(depth_image_dir, f"depth_vel_{count:04d}.png")
+
+    # 将深度图转换为可显示的格式
+    depth_img = np.squeeze(depth_image[0].cpu().numpy())
+    
+    # 创建图像
+    plt.figure(figsize=(10, 10))
+    plt.imshow(depth_img, cmap="viridis")
+    
+    # 获取图像中心点坐标
+    h, w = depth_img.shape[:2]
+    center = (w // 2, h // 2)
+    # 计算箭头终点坐标
+    velocity_cam = velocity_cam.cpu().numpy()
+    vy_cam, vz_cam = velocity_cam[0][1], velocity_cam[0][2]
+    scale = -100  # 缩放因子，用于调整箭头长度
+
+    # 在图像上绘制速度箭头
+    plt.arrow(center[0], center[1], vy_cam * scale, vz_cam * scale, 
+              head_width=20, head_length=30, fc='r', ec='r')
+    
+    # 保存图像
+    plt.axis('off')
+    plt.savefig(depth_image_path, bbox_inches='tight', pad_inches=0)
+    plt.close()
 
 
 
@@ -418,10 +496,6 @@ def main():
     print('robot_mass',robot_mass,'kg')
     print('num_envs',num_envs)
     print('dt',dt,'s')
-
-    # create a folder to save images
-    depth_image_dir = "scripts/depth_images"
-    os.makedirs(depth_image_dir, exist_ok=True)
 
     # initialize pid controller
     controller = QuadcopterController(
@@ -460,15 +534,15 @@ def main():
     desired_acc[:, 1] = 1.0
     desired_acc[:, 2] = 5.0
     desired_attitude=torch.zeros(env_cfg.scene.num_envs, 3, device=env.device)
-    desired_attitude[:, 1] = 0.5
-    desired_attitude[:, 1] = 0.01
-    desired_attitude[:, 2] = -0.4
+    # desired_attitude[:, 1] = 0.5
+    # desired_attitude[:, 1] = 0.01
+    # desired_attitude[:, 2] = -0.4
 
     # simulate physics
     count = 0
     obs, _ = env.reset()
     controller.reset_controller()
-    while count < 300:
+    while count < 500:
 
         root_quat_w = obs["policy"]['root_quat_w']
         root_ang_vel_b = obs["policy"]['root_ang_vel_b']
@@ -477,25 +551,8 @@ def main():
         projected_gravity_b = obs["policy"]['projected_gravity_b']
         imu_lin_acc_b = obs["policy"]['imu_lin_acc_b']
         depth_image = obs["policy"]['camera_depth']
-
-        # preprocess depth image
-        for env_idx in range(depth_image.shape[0]):
-            env_depth = depth_image[env_idx]
-            if torch.any(~torch.isinf(env_depth)):
-                max_valid_depth = torch.max(env_depth[~torch.isinf(env_depth)])
-            else:
-                max_valid_depth = torch.tensor(1.0, device=env_depth.device)
-            env_depth[torch.isinf(env_depth)] = max_valid_depth
-            env_depth_normalized = (env_depth - env_depth.min()) / (env_depth.max() - env_depth.min())
-            depth_image[env_idx] = env_depth_normalized
-            
-        # gaussian blur depth image
-        for env_idx in range(depth_image.shape[0]):
-            env_depth = depth_image[env_idx]
-            env_depth = env_depth.permute(2, 0, 1)
-            env_depth_smoothed = gaussian_blur(env_depth, kernel_size=[51, 51], sigma=[1000.0, 1000.0])
-            env_depth_smoothed = env_depth_smoothed.permute(1, 2, 0)
-            depth_image[env_idx] = env_depth_smoothed
+        
+        depth_image = gaussia_depth_image(depth_image)
 
         sensor_data = {
             'root_quat_w': root_quat_w,
@@ -506,70 +563,63 @@ def main():
             'imu_lin_acc_b': imu_lin_acc_b,
             'camera_depth': depth_image
         }
-        depth_image_path = os.path.join(depth_image_dir, f"depth_{count:04d}.png")
-        test_depth_image = np.squeeze(depth_image[0].cpu().numpy())
-        plt.imsave(depth_image_path, test_depth_image, cmap="viridis")
-        print(f"Saved depth image to {depth_image_path}")
+
+        # create a folder to save images
+        depth_image_dir = "/home/shenzhaolong/depth_images"
+        # save_depth_images(depth_image = depth_image, depth_image_dir = "/home/shenzhaolong/depth_images", count = count)
+        depth_vel_image_dir = "/home/shenzhaolong/depth_vel_images"
 
         # heading to 0.0.0
         # desired_attitude[:, 2] = torch.atan2(-root_pos_w[:, 1], -root_pos_w[:, 0])
-        if count < 20:
+        if count < 40:
             # test attitude_controller
             thrust, torque = controller.attitude_controller(sensor_data=sensor_data, desired_attitude=torch.zeros(env_cfg.scene.num_envs, 3, device=env.device))
             desired_attitude_controller = torch.zeros(env_cfg.scene.num_envs, 3, device=env.device)
             desired_acceleration_controller = torch.zeros(env_cfg.scene.num_envs, 3, device=env.device)
         else:
-            # test attitude_controller
-            # thrust, torque = controller.attitude_controller(sensor_data=sensor_data, desired_attitude=desired_attitude)
-            # desired_attitude_controller = desired_attitude.clone()
+            thrust, torque, desired_attitude_controller, desired_acceleration_controller, velocity_cam, velocity_world = controller.get_velocity_from_depth_gradient(sensor_data=sensor_data, desired_x_vel=1.0, desired_yaw=desired_attitude[:, 2])
+            # print('velocity_cam:',velocity_cam)
+            # print('desired_vel:',desired_vel)
+            save_depth_with_velocity(depth_image, depth_vel_image_dir, velocity_cam, count)
 
-            # test acceleration_controller
-            # thrust, torque, desired_attitude_controller = controller.acceleration_controller(sensor_data=sensor_data, desired_acc=desired_acc, desired_yaw=desired_attitude[:, 2])
-
-            # test velocity_controller
-            # thrust, torque, desired_attitude_controller, desired_acceleration_controller = controller.velocity_controller(sensor_data=sensor_data, desired_vel=desired_vel, desired_yaw=desired_attitude[:, 2])
-
-            # test position_controller
-            thrust, torque, desired_attitude_controller, desired_acceleration_controller = controller.position_controller(sensor_data=sensor_data, desired_pos=desired_pos, desired_yaw=desired_attitude[:, 2])
-            
         # 打印当前状态
-        print('-'*20)
-        print('力矩torque:', np.round(torque[0,:].cpu().numpy(), 5)) 
-        print('推力thrust:', np.round(thrust[0].cpu().numpy(), 5)) 
-        # test attitude_controlle
-        print('姿态角_w:', np.round(controller.quat_to_euler(root_quat_w)[0,:].cpu().numpy(), 5))
-        print('位置_w:', np.round(root_pos_w[0,:].cpu().numpy(), 5))
-        rotation_matrix = controller.euler_to_rotation_matrix(controller.quat_to_euler(root_quat_w))
-        print('加速度_b:', np.round(imu_lin_acc_b[0,:].cpu().numpy(), 5))
-        print('加速度_w:', np.round(torch.bmm(rotation_matrix, imu_lin_acc_b.unsqueeze(-1)).squeeze(-1)[0,:].cpu().numpy(), 5))
-        print('速度_b:', np.round(root_lin_vel_b[0,:].cpu().numpy(), 5))
-        print('速度_w:', np.round(torch.bmm(rotation_matrix, root_lin_vel_b.unsqueeze(-1)).squeeze(-1)[0,:].cpu().numpy(), 5)) 
-        print('-'*20)
+        # print('-'*20)
+        # print('力矩torque:', np.round(torque[0,:].cpu().numpy(), 5)) 
+        # print('推力thrust:', np.round(thrust[0].cpu().numpy(), 5)) 
+        # # test attitude_controlle
+        # print('姿态角_w:', np.round(controller.quat_to_euler(root_quat_w)[0,:].cpu().numpy(), 5))
+        # print('位置_w:', np.round(root_pos_w[0,:].cpu().numpy(), 5))
+        # rotation_matrix = controller.euler_to_rotation_matrix(controller.quat_to_euler(root_quat_w))
+        # print('加速度_b:', np.round(imu_lin_acc_b[0,:].cpu().numpy(), 5))
+        # print('加速度_w:', np.round(torch.bmm(rotation_matrix, imu_lin_acc_b.unsqueeze(-1)).squeeze(-1)[0,:].cpu().numpy(), 5))
+        # print('速度_b:', np.round(root_lin_vel_b[0,:].cpu().numpy(), 5))
+        # print('速度_w:', np.round(torch.bmm(rotation_matrix, root_lin_vel_b.unsqueeze(-1)).squeeze(-1)[0,:].cpu().numpy(), 5)) 
+        # print('-'*20)
         actions = torch.cat([thrust, torque], dim=1)
         obs, _ = env.step(actions)
         count += 1
 
-        # 添加数据记录（示例记录第一个环境的）
-        current_time = count * env_cfg.sim.dt
-        data_log['time'].append(current_time)
-        data_log['thrust'].append(thrust[0].cpu().numpy())
-        data_log['torque'].append(torque[0].cpu().numpy())
-        data_log['attitude'].append(controller.quat_to_euler(root_quat_w)[0].cpu().numpy())
-        data_log['position'].append(root_pos_w[0].cpu().numpy())
-        data_log['velocity'].append(torch.bmm(rotation_matrix, root_lin_vel_b.unsqueeze(-1)).squeeze(-1)[0].cpu().numpy())
-        data_log['acceleration'].append(torch.bmm(rotation_matrix, imu_lin_acc_b.unsqueeze(-1)).squeeze(-1)[0].cpu().numpy())
-        data_log['desired_acc'].append(desired_acceleration_controller[0].cpu().numpy())
-        data_log['desired_vel'].append(desired_vel[0].cpu().numpy())
-        data_log['desired_att'].append(desired_attitude_controller[0].cpu().numpy())
-        data_log['desired_pos'].append(desired_pos[0].cpu().numpy())
+        # # 添加数据记录（示例记录第一个环境的）
+        # current_time = count * env_cfg.sim.dt
+        # data_log['time'].append(current_time)
+        # data_log['thrust'].append(thrust[0].cpu().numpy())
+        # data_log['torque'].append(torque[0].cpu().numpy())
+        # data_log['attitude'].append(controller.quat_to_euler(root_quat_w)[0].cpu().numpy())
+        # data_log['position'].append(root_pos_w[0].cpu().numpy())
+        # data_log['velocity'].append(torch.bmm(rotation_matrix, root_lin_vel_b.unsqueeze(-1)).squeeze(-1)[0].cpu().numpy())
+        # data_log['acceleration'].append(torch.bmm(rotation_matrix, imu_lin_acc_b.unsqueeze(-1)).squeeze(-1)[0].cpu().numpy())
+        # data_log['desired_acc'].append(desired_acceleration_controller[0].cpu().numpy())
+        # data_log['desired_vel'].append(desired_vel[0].cpu().numpy())
+        # data_log['desired_att'].append(desired_attitude_controller[0].cpu().numpy())
+        # data_log['desired_pos'].append(desired_pos[0].cpu().numpy())
 
     env.close()
     return data_log
 
 if __name__ == "__main__":
     data_log = main()
-    plot(data_log,'position')
-    plot(data_log,'velocity')
-    plot(data_log,'acceleration')
-    plot(data_log,'attitude')
+    # plot(data_log,'position')
+    # plot(data_log,'velocity')
+    # plot(data_log,'acceleration')
+    # plot(data_log,'attitude')
     simulation_app.close()
